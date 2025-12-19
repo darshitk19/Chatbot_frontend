@@ -5,3 +5,10 @@ Difficulty that i faced in owner side if i add new business but it cannot add in
 Also faced problem in output part when seached business in not databases it online search but not get proper details
 
 working on that and try to improve streamlit UI
+
+19/12/2025
+Worked on improve a Streamlit-based business chatbot by making it more interactive and user-friendly. Added natural language search, accurate business lookup using phone numbers, and complete add, update, and view functionality connected directly to the database. 
+
+Improved the conversational flow to guide users with smart follow-up suggestions, ensured proper phone number handling, and implemented better business ranking using ratings and reviews. All changes update in real time and are stored permanently in the database.
+
+problem that i faced: 
