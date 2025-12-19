@@ -12,3 +12,6 @@ Worked on improve a Streamlit-based business chatbot by making it more interacti
 Improved the conversational flow to guide users with smart follow-up suggestions, ensured proper phone number handling, and implemented better business ranking using ratings and reviews. All changes update in real time and are stored permanently in the database.
 
 problem that i faced: 
+it can give some time direct business even if we try to show business, or update business beacuse of use natural search try to solve that problem
+
+if user update business details it can not updated now it solved
