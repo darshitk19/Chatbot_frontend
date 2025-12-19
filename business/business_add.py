@@ -2,6 +2,7 @@ import sqlite3
 from datetime import datetime
 
 from db.config import DB_PATH
+from business.business_utils import normalize_phone
 
 
 def add_business(
@@ -19,7 +20,11 @@ def add_business(
     """
     Insert a new business into google_maps_listings and return its new ID.
     Minimal required fields are name and address; everything else is optional.
+    Phone numbers are normalized before storing.
     """
+    # Normalize phone number before any operations
+    normalized_phone = normalize_phone(phone_number) if phone_number else ""
+    
     created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     conn = sqlite3.connect(DB_PATH)
@@ -27,33 +32,37 @@ def add_business(
 
     # Idempotency / uniqueness: if a business with same name + full address + phone already exists,
     # return its ID instead of inserting a duplicate.
+    # Fetch candidates by name/address, then filter by normalized phone in Python
     cur.execute(
         """
-        SELECT id FROM google_maps_listings
+        SELECT id, phone_number FROM google_maps_listings
         WHERE LOWER(name) = LOWER(?)
           AND LOWER(IFNULL(address,'')) = LOWER(?)
           AND LOWER(IFNULL(area,'')) = LOWER(?)
           AND LOWER(IFNULL(city,'')) = LOWER(?)
           AND LOWER(IFNULL(state,'')) = LOWER(?)
-          AND LOWER(IFNULL(phone_number,'')) = LOWER(?)
         """,
-        (name, address or "", area or "", city or "", state or "", phone_number or ""),
+        (name, address or "", area or "", city or "", state or ""),
     )
-    row = cur.fetchone()
-    if row and row[0] is not None:
-        existing_id = row[0]
-        try:
-            existing_id = int(existing_id)
-        except (TypeError, ValueError):
-            pass
-        conn.close()
-        return existing_id
+    # Check for exact normalized phone match
+    rows = cur.fetchall()
+    for row in rows:
+        db_phone = row[1] or ""
+        db_normalized = normalize_phone(db_phone)
+        if normalized_phone == db_normalized:
+            existing_id = row[0]
+            try:
+                existing_id = int(existing_id)
+            except (TypeError, ValueError):
+                pass
+            conn.close()
+            return existing_id
 
     base_values = (
         name,
         address,
         website or "",
-        phone_number or "",
+        normalized_phone,  # Use normalized phone number
         0,          # reviews_count
         None,       # reviews_average
         category or "",
@@ -94,26 +103,29 @@ def add_business(
     
     # If lastrowid is 0 or None, fetch the ID we just inserted
     if not new_id or new_id == 0:
+        # Fetch by name/address and filter by normalized phone
         cur.execute(
             """
-            SELECT id FROM google_maps_listings
+            SELECT id, phone_number FROM google_maps_listings
             WHERE LOWER(name) = LOWER(?)
               AND LOWER(IFNULL(address,'')) = LOWER(?)
               AND LOWER(IFNULL(area,'')) = LOWER(?)
               AND LOWER(IFNULL(city,'')) = LOWER(?)
               AND LOWER(IFNULL(state,'')) = LOWER(?)
-              AND LOWER(IFNULL(phone_number,'')) = LOWER(?)
             ORDER BY id DESC
-            LIMIT 1
             """,
-            (name, address or "", area or "", city or "", state or "", phone_number or ""),
+            (name, address or "", area or "", city or "", state or ""),
         )
-        row = cur.fetchone()
-        if row and row[0] is not None:
-            try:
-                new_id = int(row[0])
-            except (TypeError, ValueError):
-                pass
+        rows = cur.fetchall()
+        for row in rows:
+            db_phone = row[1] or ""
+            db_normalized = normalize_phone(db_phone)
+            if normalized_phone == db_normalized:
+                try:
+                    new_id = int(row[0])
+                except (TypeError, ValueError):
+                    pass
+                break
     
     conn.close()
 
